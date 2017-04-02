@@ -49,7 +49,7 @@ class AvroLoopProducer(AvroProducer):
     
     """
 
-    def __init__(self, bootstrap_servers, schema_registry_url, topic, key_schema, value_schema,
+    def __init__(self, bootstrap_servers, schema_registry_url, topic, key_schema, value_schema, poll_timeout=0.01,
                  config=default_conf, error_callback=lambda err: AvroLoopProducer.error_callback(err)):
         """
 
@@ -63,6 +63,9 @@ class AvroLoopProducer(AvroProducer):
         :type key_schema: str
         :param value_schema: Avro schema for value
         :type value_schema: str
+        :param poll_timeout: If timeout is a number or `None`: Polls the producer for events and calls the corresponding 
+            callbacks (if registered). On `False` do not call :func:`confluent_kafka.Producer.poll(timeout)`.
+        :type poll_timeout: None, float
         :param config: 
         :type config: dict
         :param error_callback: function that handles occurring error events
@@ -75,6 +78,7 @@ class AvroLoopProducer(AvroProducer):
 
         self._topic = topic
         self._config = config
+        self._poll_timeout = poll_timeout
 
         if error_callback is not None:
             self._config.update({"error_cb": error_callback})
@@ -94,8 +98,8 @@ class AvroLoopProducer(AvroProducer):
 
         super().__init__(self._config, default_key_schema=self._key_schema, default_value_schema=self._value_schema)
 
-    def produce(self, key, value, timestamp=None, on_delivery=lambda err, msg: AvroLoopProducer.on_delivery(err, msg),
-                poll_timeout=0.01, **kwargs):
+    def produce(self, key=None, value=None, partition=None, timestamp=None,
+                on_delivery=lambda err, msg: AvroLoopProducer.on_delivery(err, msg)):
         """
         Sends message to kafka by encoding with specified avro schema
 
@@ -107,9 +111,6 @@ class AvroLoopProducer(AvroProducer):
             api.version.request=true, and broker >= 0.10.0.0). Default value is current time.
         :param on_delivery: callbacks from :func:`produce()`
         :type on_delivery: lambda err, msg
-        :param poll_timeout: If timeout is a number or `None`: Polls the producer for events and calls the corresponding 
-            callbacks (if registered). On `False` do not call :func:`confluent_kafka.Producer.poll(timeout)`.
-        :type poll_timeout: None, float
         
         :raises BufferError: if the internal producer message queue is full (``queue.buffering.max.messages`` exceeded)
         :raises ~confluent_kafka.KafkaException: for other errors, see exception code
@@ -118,26 +119,53 @@ class AvroLoopProducer(AvroProducer):
         :raises avro.schema.SchemaParseException:
         """
 
-        if on_delivery is not None:
-            kwargs.update({"on_delivery": on_delivery})
+        kwargs = dict()
+
+        if key is not None:
+            kwargs['key'] = key
+
+        if value is not None:
+            kwargs['value'] = value
+
+        if partition is not None:
+            kwargs['partition'] = partition
 
         if timestamp is not None:
             kwargs.update({"timestamp": timestamp})
 
+        if on_delivery is not None:
+            kwargs.update({"on_delivery": on_delivery})
+
         try:
-            super().produce(topic=self._topic, key=key, value=value, **kwargs)
+            super().produce(topic=self._topic, **kwargs)
+
+        # if connection to schema registry server is down
         except requests.exceptions.ConnectionError as e:
             logger.error(e)
             time.sleep(1)
 
-        if type(poll_timeout) != bool:
-            super().poll(timeout=poll_timeout)
+        if type(self._poll_timeout) != bool:
+            super().poll(timeout=self._poll_timeout)
 
-    def loop(self, get_data_function, interval=1, unit=Unit.SECOND, begin=Begin.FULL_SECOND):
+    def _loop_produce(self, data_function):
 
-        get_data_kwargs = get_data_function()
+        data = data_function()
+        if data is None:
+            logger.warning("The result of data_function is None. Continue without sending any message.")
 
-        self._timer = Timer(lambda **kwargs: self.produce(**get_data_kwargs), interval, unit, begin)
+        elif type(data) is not dict:
+            logger.warning("The result of data_function is not a dictionary. Continue without sending any message.")
+
+        elif 'key' not in data and 'value' not in data and 'timestamp' not in data:
+            logger.warning("The result of data_function does not contain any elements of 'key', 'value' or 'timestamp'."
+                           "Continue without sending any message.")
+
+        else:
+            self.produce(**data)
+
+    def loop(self, data_function, interval=1, unit=Unit.SECOND, begin=Begin.FULL_SECOND):
+
+        self._timer = Timer(lambda: self._loop_produce(data_function), interval, unit, begin)
         try:
             self._timer.start()
         except KeyboardInterrupt:

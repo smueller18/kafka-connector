@@ -17,8 +17,11 @@ def get_data():
     return {'key': time.time(), 'value': {'name': 'abc', 'number': int(time.time())}}
 
 
+def get_data2():
+    return None
+
 producer = AvroLoopProducer("localhost:9092", "http://localhost:8081", "testtopic",
                             __dirname__ + "/schema/key_schema.avsc",
                             __dirname__ + "/schema/value_schema.avsc")
-producer.loop(get_data)
+producer.loop(get_data2)
 # producer.loop(get_data, begin=[dt.time(19, 4, 20), dt.time(19, 4, 40)])
