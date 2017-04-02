@@ -45,7 +45,7 @@ class Unit(Enum):
 
 
 class Timer(object):
-    """ Timer
+    """
     """
 
     def __init__(self, timer_function, interval=1, unit=Unit.SECOND, begin=Begin.FULL_SECOND):
@@ -58,8 +58,9 @@ class Timer(object):
         :type interval: int
         :param unit: unit for interval
         :type unit: :class:`Unit`
-        :param begin: set nice start point
-        :type begin: :class:`timer.Begin` or list of :class:`datetime.time`
+        :param begin: Set start point. Either choose one of :class:`kafka_connector.timer.Begin` elements or a list of 
+            :class:`datetime.time` including start times where the time is selected which is the nearest in the future.
+        :type begin: :class:`kafka_connector.timer.Begin` or list of :class:`datetime.time`
         """
 
         if type(interval) != int:
@@ -76,10 +77,10 @@ class Timer(object):
         if not callable(timer_function):
             raise AttributeError("timer_function is not callable")
 
-        self._timer_function = timer_function
-        self._interval = interval
-        self._unit = unit
-        self._begin = begin
+        self.timer_function = timer_function
+        self.interval = interval
+        self.unit = unit
+        self.begin = begin
 
         self._started = False
         self._running = False
@@ -87,31 +88,32 @@ class Timer(object):
 
     def start(self):
         """
-        Start timer and repeat calling :data:`timer_function` every :data:`interval`
+        Start timer and repeat calling :data:`self.timer_function` every :data:`self.interval`
         """
 
         self._started = True
         self._running = True
+        self._stopped = False
 
         # timestamp for next run in milliseconds
         next_run = None
 
-        if self._begin == Begin.FULL_CENTISECOND:
+        if self.begin == Begin.FULL_CENTISECOND:
             next_run = math.ceil(time.time() * 10) * 100
 
-        elif self._begin == Begin.FULL_DECISECOND:
+        elif self.begin == Begin.FULL_DECISECOND:
             next_run = math.ceil(time.time() * 100) * 10
 
-        elif self._begin == Begin.FULL_SECOND:
+        elif self.begin == Begin.FULL_SECOND:
             next_run = math.ceil(time.time()) * 1000
 
-        elif self._begin == Begin.FULL_MINUTE:
+        elif self.begin == Begin.FULL_MINUTE:
             next_run = math.ceil(time.time() / 60) * 60000
 
-        elif self._begin == Begin.FULL_HOUR:
+        elif self.begin == Begin.FULL_HOUR:
             next_run = math.ceil(time.time() / 3600) * 3600000
 
-        elif isinstance(self._begin, list):
+        elif isinstance(self.begin, list):
 
             date = datetime.datetime.now()
             for i in range(0, 2):
@@ -121,7 +123,7 @@ class Timer(object):
                 try:
                     next_run = min(
                             date.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=t.microsecond) for
-                            t in self._begin
+                            t in self.begin
                             if (date.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=t.microsecond)
                                 - date).total_seconds() > 0
                     ).timestamp() * 1000
@@ -138,24 +140,7 @@ class Timer(object):
         while self._running:
 
             try:
-                self._timer_function()
-
-                if self._unit == Unit.MILLISECOND:
-                    next_run += self._interval
-
-                elif self._unit == Unit.SECOND:
-                    next_run += self._interval * 1000
-
-                elif self._unit == Unit.MINUTE:
-                    next_run += self._interval * 60000
-
-                elif self._unit == Unit.HOUR:
-                    next_run += self._interval * 3600000
-
-                if sleep_time > 60:
-                    logger.info("Going to sleep for " + str(round(sleep_time, 2)) + " seconds")
-
-                time.sleep(max(0., next_run / 1000 - time.time()))
+                self.timer_function()
 
             except Exception as e:
                 logger.exception(e)
@@ -163,13 +148,41 @@ class Timer(object):
             except KeyboardInterrupt as e:
                 raise e
 
+            if self.unit == Unit.MILLISECOND:
+                next_run += self.interval
+
+            elif self.unit == Unit.SECOND:
+                next_run += self.interval * 1000
+
+            elif self.unit == Unit.MINUTE:
+                next_run += self.interval * 60000
+
+            elif self.unit == Unit.HOUR:
+                next_run += self.interval * 3600000
+
+            if sleep_time > 60:
+                logger.info("Going to sleep for " + str(round(sleep_time, 2)) + " seconds")
+
+            time.sleep(max(0., next_run / 1000 - time.time()))
+
         self._stopped = True
 
     def stop(self):
+        """
+        Sets loop condition to false and timer loop will break at the next condition check. 
+        """
         self._running = False
 
     def is_started(self):
+        """        
+        :return: If the timer has already been started
+        :rtype: bool 
+        """
         return self._started
 
     def is_stopped(self):
+        """
+        :return: If timer loop finished
+        :rtype: bool
+        """
         return self._stopped
