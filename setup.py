@@ -2,11 +2,19 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup
+import os
 import kafka_connector
 
 __author__ = u'Stephan Müller'
 __copyright__ = u'2017, Stephan Müller'
 __license__ = u'MIT'
+
+
+install_requires = []
+
+# prevent readthedocs.org from installing confluent_kafka
+if not os.path.dirname(os.path.abspath(__file__)).startswith('/home/docs/checkouts/readthedocs.org/'):
+    install_requires.append('confluent_kafka')
 
 
 setup(
@@ -25,7 +33,5 @@ setup(
         "Programming Language :: Python :: 3.5",
         "License :: OSI Approved :: MIT License"
     ],
-    install_requires=[
-#        'confluent_kafka'
-    ],
+    install_requires=install_requires,
 )
