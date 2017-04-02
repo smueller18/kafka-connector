@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import time
+import requests.exceptions
 
 from avro.schema import SchemaParseException
-from confluent_kafka import avro, KafkaError, KafkaException
+from confluent_kafka import avro
 from confluent_kafka.avro import AvroProducer
 
 from kafka_connector.timer import Timer, Begin, Unit
@@ -18,12 +20,10 @@ default_conf = {
     'log_level': 0,
     'api.version.request': True,
     'queue.buffering.max.messages': 100000,
-    'queue.buffering.max.ms': 1,
+    'queue.buffering.max.ms': 10,
     'message.send.max.retries': 200,
-    'session.timeout.ms': 10,
     'default.topic.config':
         {
-            'message.timeout.ms': 300000,
             'produce.offset.report': True
         }
 }
@@ -39,12 +39,10 @@ class AvroLoopProducer(AvroProducer):
     ...    'log_level': 0,
     ...    'api.version.request': True,
     ...    'queue.buffering.max.messages': 100000,
-    ...    'queue.buffering.max.ms': 1,
+    ...    'queue.buffering.max.ms': 10,
     ...    'message.send.max.retries': 200,
-    ...    'session.timeout.ms': 10,
     ...    'default.topic.config':
     ...      {
-    ...        'message.timeout.ms': 300000,
     ...        'produce.offset.report': True
     ...      }
     ...  }    
@@ -67,6 +65,8 @@ class AvroLoopProducer(AvroProducer):
         :type value_schema: str
         :param config: 
         :type config: dict
+        :param error_callback: function that handles occurring error events
+        :type error_callback: lambda err: function(err)
 
         :raise SchemaParseException: 
         """
@@ -124,7 +124,11 @@ class AvroLoopProducer(AvroProducer):
         if timestamp is not None:
             kwargs.update({"timestamp": timestamp})
 
-        super().produce(topic=self._topic, key=key, value=value, **kwargs)
+        try:
+            super().produce(topic=self._topic, key=key, value=value, **kwargs)
+        except requests.exceptions.ConnectionError as e:
+            logger.error(e)
+            time.sleep(1)
 
         if type(poll_timeout) != bool:
             super().poll(timeout=poll_timeout)
@@ -133,13 +137,20 @@ class AvroLoopProducer(AvroProducer):
 
         get_data_kwargs = get_data_function()
 
-        timer = Timer(lambda **kwargs: self.produce(**get_data_kwargs), interval, unit, begin)
+        self._timer = Timer(lambda **kwargs: self.produce(**get_data_kwargs), interval, unit, begin)
         try:
-            timer.start()
+            self._timer.start()
         except KeyboardInterrupt:
             super().flush(0.1)
             # todo handle KeyboardInterrupt
             return
+
+    def stop(self):
+        """
+        Stops the timer if it is running
+        """
+        if self._timer is not None and not self._timer.is_stopped():
+            self._timer.stop()
 
     @staticmethod
     def on_delivery(err, msg):
