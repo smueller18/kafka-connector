@@ -12,13 +12,9 @@ __copyright__ = u'2017, Stephan Müller'
 __license__ = u'MIT'
 
 
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-            return MagicMock()
-
-MOCK_MODULES = ['confluent_kafka']
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+MOCK_MODULES = ['confluent_kafka', 'confluent_kafka.avro']
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = MagicMock()
 
 
 if sys.version_info[0] < 3:
