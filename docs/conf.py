@@ -3,6 +3,7 @@
 
 import os
 import sys
+from unittest.mock import MagicMock
 sys.path.insert(0, os.path.abspath('../'))
 import kafka_connector
 
@@ -10,6 +11,11 @@ import kafka_connector
 __author__ = u'Stephan Müller'
 __copyright__ = u'2017, Stephan Müller'
 __license__ = u'MIT'
+
+
+MOCK_MODULES = ['confluent_kafka', 'confluent_kafka.avro']
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = MagicMock()
 
 
 version = release = kafka_connector.__version__
