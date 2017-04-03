@@ -31,7 +31,7 @@ default_conf = {
 
 class AvroLoopProducer(AvroProducer):
 
-    """
+    """AvroProducer with integrated timer function that calls a data producing function every defined interval.
     
     The default config is
     
@@ -45,7 +45,7 @@ class AvroLoopProducer(AvroProducer):
     ...      {
     ...        'produce.offset.report': True
     ...      }
-    ...  }    
+    ...  }
     
     """
 
@@ -53,9 +53,9 @@ class AvroLoopProducer(AvroProducer):
                  config=default_conf, error_callback=lambda err: AvroLoopProducer.error_callback(err)):
         """
 
-        :param bootstrap_servers: 
+        :param bootstrap_servers: Initial list of brokers as a CSV list of broker host or host:port.
         :type bootstrap_servers: str
-        :param schema_registry_url: 
+        :param schema_registry_url: url for schema registry
         :type schema_registry_url: str
         :param topic: topic name
         :type topic: str
@@ -66,12 +66,13 @@ class AvroLoopProducer(AvroProducer):
         :param poll_timeout: If timeout is a number or `None`: Polls the producer for events and calls the corresponding 
             callbacks (if registered). On `False` do not call :func:`confluent_kafka.Producer.poll(timeout)`.
         :type poll_timeout: None, float
-        :param config: 
+        :param config: A config dictionary with properties listed at
+            https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
         :type config: dict
         :param error_callback: function that handles occurring error events
         :type error_callback: lambda err: function(err)
-
-        :raise SchemaParseException: 
+        
+        :raises avro.schema.SchemaParseException: if either key or value schema is invalid
         """
 
         self._timer = None
@@ -113,10 +114,9 @@ class AvroLoopProducer(AvroProducer):
         :type on_delivery: lambda err, msg
         
         :raises BufferError: if the internal producer message queue is full (``queue.buffering.max.messages`` exceeded)
-        :raises ~confluent_kafka.KafkaException: for other errors, see exception code
+        :raises ~confluent_kafka.KafkaException: see exception code
         :raises NotImplementedError: if timestamp is specified without underlying library support.
-        :raises SerializerError:     
-        :raises avro.schema.SchemaParseException:
+        :raises avro.schema.SchemaParseException: schema is not a valid Avro schema
         """
 
         kwargs = dict()
@@ -148,6 +148,12 @@ class AvroLoopProducer(AvroProducer):
             super().poll(timeout=self._poll_timeout)
 
     def _loop_produce(self, data_function):
+        """
+        Preprocess data_function. Only allow valid results being pushed to Kafka. 
+        
+        :param data_function: 
+        :type data_function: 
+        """
 
         data = data_function()
         if data is None:
@@ -164,7 +170,21 @@ class AvroLoopProducer(AvroProducer):
             self.produce(**data)
 
     def loop(self, data_function, interval=1, unit=Unit.SECOND, begin=Begin.FULL_SECOND):
-
+        """
+        Start timer that calls :data:`data_function` every defined interval.
+        
+        :param data_function: the result of this function is used as ``**kwargs`` for :meth:`produce()`
+        :type data_function: function that returns a dict with possible keys `key`, `value`, `timestamp`, `partition` 
+            and `on_delivery`
+        :param interval: interval step
+        :type interval: int
+        :param unit: unit for interval
+        :type unit: :class:`~kafka_connector.timer.Unit`
+        :param begin: Set start point. Either choose one of :class:`kafka_connector.timer.Begin` elements or a list of 
+            :class:`datetime.time` including start times. In the second case, the start time is set to the time which is
+            the closest from the current timestamp.
+        :type begin: :class:`kafka_connector.timer.Begin` or list of :class:`datetime.time`
+        """
         self._timer = Timer(lambda: self._loop_produce(data_function), interval, unit, begin)
         try:
             self._timer.start()
@@ -182,6 +202,9 @@ class AvroLoopProducer(AvroProducer):
 
     @staticmethod
     def on_delivery(err, msg):
+        """
+        Handles callbacks from :func:`produce()`
+        """
         if err is not None:
             logger.error(str(err))
         else:
@@ -189,4 +212,7 @@ class AvroLoopProducer(AvroProducer):
 
     @staticmethod
     def error_callback(err):
+        """
+        Handles error message
+        """
         logger.error(str(err))

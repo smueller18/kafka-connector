@@ -21,7 +21,6 @@ class Begin(Enum):
     :ivar FULL_SECOND: 4
     :ivar FULL_MINUTE: 5
     :ivar FULL_HOUR: 6
-    :ivar CUSTOM: 10
     """
     IMMEDIATELY = 1
     FULL_CENTISECOND = 2
@@ -45,7 +44,7 @@ class Unit(Enum):
 
 
 class Timer(object):
-    """
+    """Runs a predefined function every given interval
     """
 
     def __init__(self, timer_function, interval=1, unit=Unit.SECOND, begin=Begin.FULL_SECOND):
@@ -59,8 +58,9 @@ class Timer(object):
         :param unit: unit for interval
         :type unit: :class:`Unit`
         :param begin: Set start point. Either choose one of :class:`kafka_connector.timer.Begin` elements or a list of 
-            :class:`datetime.time` including start times where the time is selected which is the nearest in the future.
-        :type begin: :class:`kafka_connector.timer.Begin` or list of :class:`datetime.time`
+            :class:`datetime.time` including start times. In the second case, the start time is set to the time which is
+            the closest from the current timestamp.
+        :type begin: :class:`Begin` or list of :class:`datetime.time`
         """
 
         if type(interval) != int:
@@ -169,10 +169,13 @@ class Timer(object):
 
     def stop(self):
         """
-        Sets loop condition to false and timer loop will break at the next condition check. 
+        Sets loop condition to false and timer loop will break in the next iteration. The current call of the 
+        :data:`timer_function` will not be aborted.
+        
         """
         self._running = False
 
+    @property
     def is_started(self):
         """        
         :return: If the timer has already been started
@@ -180,6 +183,7 @@ class Timer(object):
         """
         return self._started
 
+    @property
     def is_stopped(self):
         """
         :return: If timer loop finished

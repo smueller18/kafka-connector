@@ -19,13 +19,14 @@ default_conf = {
 class AvroLoopConsumer(AvroConsumer):
 
     """
+    AvroConsumer with possibility to register an on_delivery function which is called whenever new messages arrive.
     
     The default config is
     
     >>> default_conf = {    
     ...    'log_level': 0,
     ...    'api.version.request': True,
-    ...  }    
+    ...  }
     
     """
 
@@ -33,14 +34,15 @@ class AvroLoopConsumer(AvroConsumer):
                  error_callback=lambda err: AvroLoopConsumer.error_callback(err)):
         """
 
-        :param bootstrap_servers: 
+        :param bootstrap_servers: Initial list of brokers as a CSV list of broker host or host:port.
         :type bootstrap_servers: str
-        :param schema_registry_url: 
+        :param schema_registry_url: url for schema registry
         :type schema_registry_url: str
         :param topics: List of topics (strings) to subscribe to. Regexp pattern subscriptions are supported by prefixing
             the topic string with ``"^"``, e.g. ``["^my_topic.*", "^another[0-9]-?[a-z]+$", "not_a_regex"]``
         :type topics: list(str) 
-        :param config: 
+        :param config: A config dictionary with properties listed at
+            https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
         :type config: dict
         :param error_callback: function that handles occurring error events
         :type error_callback: lambda err: function(err)
@@ -91,28 +93,26 @@ class AvroLoopConsumer(AvroConsumer):
                             % (str(msg.topic()), str(msg.offset())))
                 on_delivery(msg)
 
-
         super().close()
         self._stopped = True
 
     def stop(self):
+        """
+        Stops the timer if it is running
+        """
         self._running = False
 
+    @property
     def is_stopped(self):
         """
-        :return: ``True``, if consumer loop finished
+        :return: True, if consumer loop finished
         :rtype: bool
         """
         return self._stopped
 
     @staticmethod
-    def on_delivery(err, msg):
-        if err is not None:
-            logger.error(str(err))
-        else:
-            logger.info("Delivered message with topic '%s' with offset '%s' successfully"
-                        % (str(msg.topic()), str(msg.offset())))
-
-    @staticmethod
     def error_callback(err):
+        """
+        Handles error message
+        """
         logger.error(str(err))
