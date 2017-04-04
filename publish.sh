@@ -9,7 +9,7 @@ fi
 
 echo "uploading package."
 python3 setup.py sdist
-twine upload dist/*
+twine upload dist/*-$VERSION.tar.gz
 
 echo "creating tag $VERSION"
 git tag $VERSION
