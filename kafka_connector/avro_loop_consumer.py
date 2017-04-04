@@ -10,7 +10,7 @@ __license__ = u'MIT'
 
 logger = logging.getLogger(__name__)
 
-default_conf = {
+default_config = {
     'log_level': 0,
     'api.version.request': True,
 }
@@ -20,17 +20,17 @@ class AvroLoopConsumer(AvroConsumer):
 
     """
     AvroConsumer with possibility to register an on_delivery function which is called whenever new messages arrive.
-    
+
     The default config is
-    
-    >>> default_conf = {    
+
+    >>> default_config = {    
     ...    'log_level': 0,
     ...    'api.version.request': True,
     ...  }
-    
+
     """
 
-    def __init__(self, bootstrap_servers, schema_registry_url, consumer_group, topics, config=default_conf,
+    def __init__(self, bootstrap_servers, schema_registry_url, consumer_group, topics, config=default_config,
                  error_callback=lambda err: AvroLoopConsumer.error_callback(err)):
         """
 
@@ -40,7 +40,7 @@ class AvroLoopConsumer(AvroConsumer):
         :type schema_registry_url: str
         :param topics: List of topics (strings) to subscribe to. Regexp pattern subscriptions are supported by prefixing
             the topic string with ``"^"``, e.g. ``["^my_topic.*", "^another[0-9]-?[a-z]+$", "not_a_regex"]``
-        :type topics: list(str) 
+        :type topics: list(str)
         :param config: A config dictionary with properties listed at
             https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
         :type config: dict
@@ -69,7 +69,7 @@ class AvroLoopConsumer(AvroConsumer):
     def loop(self, on_delivery, timeout=None):
         """
         Consumes and decodes Avro messages from kafka
-        
+
         :param on_delivery: function that handles successful received and decoded messages
         :type on_delivery: lambda msg: function(msg)
         :param timeout: Maximum time to block waiting for message, event or callback
