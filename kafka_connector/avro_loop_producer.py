@@ -142,8 +142,8 @@ class AvroLoopProducer(AvroProducer):
             super().produce(topic=self._topic, **kwargs)
 
         # if connection to schema registry server is down
-        except requests.exceptions.ConnectionError as e:
-            logger.error(e)
+        except requests.exceptions.ConnectionError:
+            logger.error("Schema registry server is not reachable.")
             time.sleep(1)
 
         if type(self._poll_timeout) != bool:
