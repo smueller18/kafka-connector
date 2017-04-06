@@ -155,19 +155,26 @@ class AvroLoopProducer(AvroProducer):
         :type data_function:
         """
 
-        data = data_function()
-        if data is None:
-            logger.warning("The result of data_function is None. Continue without sending any message.")
+        data_sets = data_function()
 
-        elif type(data) is not dict:
-            logger.warning("The result of data_function is not a dictionary. Continue without sending any message.")
+        if type(data_sets) is not list:
+            
+            data_sets = [data_sets]
 
-        elif 'key' not in data and 'value' not in data and 'timestamp' not in data:
-            logger.warning("The result of data_function does not contain any elements of 'key', 'value' or 'timestamp'."
-                           "Continue without sending any message.")
+        for data in data_sets:
 
-        else:
-            self.produce(**data)
+            if data is None:
+                logger.warning("The result of data_function is None. Continue without sending any message.")
+
+            elif type(data) is not dict:
+                logger.warning("The result of data_function is not a dictionary. Continue without sending any message.")
+
+            elif 'key' not in data and 'value' not in data and 'timestamp' not in data:
+                logger.warning("The result of data_function does not contain any elements of 'key', 'value' or 'timestamp'."
+                               "Continue without sending any message.")
+
+            else:
+                self.produce(**data)
 
     def loop(self, data_function, interval=1, unit=Unit.SECOND, begin=Begin.FULL_SECOND):
         """
