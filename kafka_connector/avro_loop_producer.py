@@ -99,7 +99,7 @@ class AvroLoopProducer(AvroProducer):
 
         super().__init__(self._config, default_key_schema=self._key_schema, default_value_schema=self._value_schema)
 
-    def produce(self, key=None, value=None, partition=None, timestamp=None,
+    def produce(self, key=None, value=None, timestamp=None, partition=None,
                 on_delivery=lambda err, msg: AvroLoopProducer.on_delivery(err, msg)):
         """
         Sends message to kafka by encoding with specified avro schema
@@ -110,6 +110,8 @@ class AvroLoopProducer(AvroProducer):
         :type key: any
         :param timestamp: Message timestamp (CreateTime) in microseconds since epoch UTC (requires librdkafka >= v0.9.4,
             api.version.request=true, and broker >= 0.10.0.0). Default value is current time.
+        :param partition: Partition to produce to, elses uses the configured partitioner.
+        :type partition: int
         :param on_delivery: callbacks from :func:`produce()`
         :type on_delivery: lambda err, msg
 
@@ -151,14 +153,15 @@ class AvroLoopProducer(AvroProducer):
         """
         Preprocess data_function. Only allow valid results being pushed to Kafka.
 
-        :param data_function:
-        :type data_function:
+        :param data_function: the result of this function is used as ``**kwargs`` for :meth:`produce()`
+        :type data_function: function that returns a list of dicts or a single dict with possible keys `key`, `value`, 
+            `timestamp`, `partition` and `on_delivery`
         """
 
         data_sets = data_function()
 
         if type(data_sets) is not list:
-            
+
             data_sets = [data_sets]
 
         for data in data_sets:
@@ -170,8 +173,8 @@ class AvroLoopProducer(AvroProducer):
                 logger.warning("The result of data_function is not a dictionary. Continue without sending any message.")
 
             elif 'key' not in data and 'value' not in data and 'timestamp' not in data:
-                logger.warning("The result of data_function does not contain any elements of 'key', 'value' or 'timestamp'."
-                               "Continue without sending any message.")
+                logger.warning("The result of data_function does not contain any elements of 'key', 'value'"
+                               " or 'timestamp'. Continue without sending any message.")
 
             else:
                 self.produce(**data)
@@ -181,8 +184,8 @@ class AvroLoopProducer(AvroProducer):
         Start timer that calls :data:`data_function` every defined interval.
 
         :param data_function: the result of this function is used as ``**kwargs`` for :meth:`produce()`
-        :type data_function: function that returns a dict with possible keys `key`, `value`, `timestamp`, `partition`
-            and `on_delivery`
+        :type data_function: function that returns a list of dicts or a single dict with possible keys `key`, `value`, 
+            `timestamp`, `partition` and `on_delivery`
         :param interval: interval step
         :type interval: int
         :param unit: unit for interval
