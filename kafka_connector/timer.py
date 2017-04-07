@@ -122,10 +122,10 @@ class Timer(object):
                     date = (date + datetime.timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
                 try:
                     next_run = min(
-                            date.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=t.microsecond) for
-                            t in self.begin
-                            if (date.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=t.microsecond)
-                                - date).total_seconds() > 0
+                            [date.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=t.microsecond) for
+                             t in self.begin
+                             if (date.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=t.microsecond)
+                                 - date).total_seconds() > 0]
                     ).timestamp() * 1000
                 except ValueError:
                     continue
