@@ -116,24 +116,24 @@ class Timer(object):
         elif isinstance(self.begin, list):
 
             date = datetime.datetime.now()
-            for i in range(0, 2):
+            for i in range(1, 3):
 
-                if i > 0:
-                    date = (date + datetime.timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
                 try:
                     next_run = min(
                             [date.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=t.microsecond) for
                              t in self.begin
                              if (date.replace(hour=t.hour, minute=t.minute, second=t.second, microsecond=t.microsecond)
-                                 - date).total_seconds() > 0]
+                                 - date).total_seconds() >= 0]
                     ).timestamp() * 1000
+                    break
                 except ValueError:
+                    date = (date + datetime.timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
                     continue
 
         sleep_time = max(0., next_run / 1000 - time.time())
 
-        if sleep_time > 60:
-            logger.info("Going to sleep for " + str(round(sleep_time, 2)) + " seconds")
+        if sleep_time > 30:
+            logger.info("Going to sleep for " + Timer.str_timedelta(int(sleep_time)))
 
         time.sleep(max(0., next_run / 1000 - time.time()))
 
@@ -160,8 +160,8 @@ class Timer(object):
             elif self.unit == Unit.HOUR:
                 next_run += self.interval * 3600000
 
-            if sleep_time > 60:
-                logger.info("Going to sleep for " + str(round(sleep_time, 2)) + " seconds")
+            if sleep_time > 30:
+                logger.info("Going to sleep for " + Timer.str_timedelta(int(sleep_time)))
 
             time.sleep(max(0., next_run / 1000 - time.time()))
 
@@ -190,3 +190,24 @@ class Timer(object):
         :rtype: bool
         """
         return self._stopped
+
+    @staticmethod
+    def str_timedelta(seconds):
+        """
+        Stringify a timedelta from seconds in form x h x min x s
+        :param seconds: number of seconds
+        :type seconds: int
+        
+        :return: timedelta from seconds in form x h x min x s
+        :rtype: str
+        """
+
+        hour_minute = ""
+
+        if seconds > 3600:
+            hour_minute += str(int(seconds / 3600.0)) + " h "
+
+        if seconds > 60:
+            hour_minute += str(int(seconds / 60) % 60) + " min "
+
+        return hour_minute + str(seconds % 60) + " s"
