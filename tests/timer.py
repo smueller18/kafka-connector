@@ -13,7 +13,7 @@ begin_times = [
     datetime.time(hour=0),
     datetime.time(hour=6),
     datetime.time(hour=12),
-    datetime.time(hour=18),
+    datetime.time(hour=18)
 ]
 
 

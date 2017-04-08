@@ -33,9 +33,9 @@ class Begin(Enum):
 class Unit(Enum):
     """
     :ivar MILLISECOND: 1
-    :ivar SECOND: 2 
-    :ivar MINUTE: 3 
-    :ivar HOUR: 4 
+    :ivar SECOND: 2
+    :ivar MINUTE: 3
+    :ivar HOUR: 4
     """
     MILLISECOND = 1
     SECOND = 2
@@ -57,22 +57,22 @@ class Timer(object):
         :type interval: int
         :param unit: unit for interval
         :type unit: :class:`Unit`
-        :param begin: Set start point. Either choose one of :class:`kafka_connector.timer.Begin` elements or a list of 
-            :class:`datetime.time` including start times. In the second case, the start time is set to the time which is
-            the closest from the current timestamp.
-        :type begin: :class:`Begin` or list of :class:`datetime.time`
+        :param begin: Set start point. Either choose `None` for starting immediately,
+            :class:`kafka_connector.timer.Begin` elements or a list of :class:`datetime.time` including start times.
+            In the third case, the start time is set to the time which is the closest from the current timestamp.
+        :type begin: None or :class:`Begin` or list of :class:`datetime.time`
         """
 
         if type(interval) != int:
             raise AttributeError("Interval must be of type int")
 
-        if not isinstance(begin, Begin):
-            if type(begin) is not list:
-                raise AttributeError("begin must be of type <enum 'TimerBegin'> or list")
-            else:
-                for t in begin:
-                    if type(t) is not datetime.time:
-                        raise AttributeError("begin element '" + str(t) + "' is not of type datetime.time")
+        if not (begin is None or isinstance(begin, Begin) or type(begin) is list):
+            raise AttributeError("begin must be None, of type <enum 'TimerBegin'> or list")
+
+        elif type(begin) is list:
+            for t in begin:
+                if type(t) is not datetime.time:
+                    raise AttributeError("begin element '" + str(t) + "' is not of type datetime.time")
 
         if not callable(timer_function):
             raise AttributeError("timer_function is not callable")
@@ -98,7 +98,10 @@ class Timer(object):
         # timestamp for next run in milliseconds
         next_run = None
 
-        if self.begin == Begin.FULL_CENTISECOND:
+        if self.begin is None or self.begin == Begin.IMMEDIATELY:
+            next_run = time.time()
+
+        elif self.begin == Begin.FULL_CENTISECOND:
             next_run = math.ceil(time.time() * 10) * 100
 
         elif self.begin == Begin.FULL_DECISECOND:
@@ -160,6 +163,8 @@ class Timer(object):
             elif self.unit == Unit.HOUR:
                 next_run += self.interval * 3600000
 
+            sleep_time = max(0., next_run / 1000 - time.time())
+
             if sleep_time > 30:
                 logger.info("Going to sleep for " + Timer.str_timedelta(int(sleep_time)))
 
@@ -169,17 +174,17 @@ class Timer(object):
 
     def stop(self):
         """
-        Sets loop condition to false and timer loop will break in the next iteration. The current call of the 
+        Sets loop condition to false and timer loop will break in the next iteration. The current call of the
         :data:`timer_function` will not be aborted.
-        
+
         """
         self._running = False
 
     @property
     def is_started(self):
-        """        
+        """
         :return: If the timer has already been started
-        :rtype: bool 
+        :rtype: bool
         """
         return self._started
 
@@ -197,7 +202,7 @@ class Timer(object):
         Stringify a timedelta from seconds in form x h x min x s
         :param seconds: number of seconds
         :type seconds: int
-        
+
         :return: timedelta from seconds in form x h x min x s
         :rtype: str
         """
