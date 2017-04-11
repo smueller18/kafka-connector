@@ -21,9 +21,6 @@ __copyright__ = u'2017, Stephan Müller'
 __license__ = u'MIT'
 
 
-
-
-
 version = release = kafka_connector.__version__
 
 extensions = [
