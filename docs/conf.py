@@ -4,11 +4,13 @@
 import sys
 import os
 
-from unittest.mock import MagicMock
+from mock import Mock
 
-MOCK_MODULES = ['confluent_kafka', 'confluent_kafka.avro']
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = MagicMock()
+confluent_kafka_mock = Mock()
+confluent_kafka_mock_avro = Mock(AvroProducer=object, AvroConsumer=object)
+
+sys.modules.update([("confluent_kafka", confluent_kafka_mock)])
+sys.modules.update([("confluent_kafka.avro", confluent_kafka_mock_avro)])
 
 sys.path.insert(0, os.path.abspath('../'))
 import kafka_connector
