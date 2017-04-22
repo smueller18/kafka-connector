@@ -18,7 +18,7 @@ else:
 
 install_requires = [avro]
 
-if os.environ.get('READTHEDOCS') == 'True':
+if not os.environ.get('READTHEDOCS', 'False') == 'True':
     install_requires.append('confluent_kafka')
 
 
