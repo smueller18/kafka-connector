@@ -18,8 +18,7 @@ else:
 
 install_requires = [avro]
 
-# prevent readthedocs.org from installing confluent_kafka
-if not os.path.dirname(os.path.abspath(__file__)).startswith('/home/docs/checkouts/readthedocs.org/'):
+if os.environ.get('READTHEDOCS') == 'True':
     install_requires.append('confluent_kafka')
 
 
