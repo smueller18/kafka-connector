@@ -23,7 +23,7 @@ class AvroLoopConsumer(AvroConsumer):
 
     The default config is
 
-    >>> default_config = {    
+    >>> default_config = {
     ...    'log_level': 0,
     ...    'api.version.request': True,
     ...  }
@@ -58,9 +58,9 @@ class AvroLoopConsumer(AvroConsumer):
         self._config['schema.registry.url'] = schema_registry_url
         self._config['group.id'] = consumer_group
 
-        super().__init__(self._config)
+        super(AvroLoopConsumer, self).__init__(self._config)
 
-        super().subscribe(self._topics)
+        super(AvroLoopConsumer, self).subscribe(self._topics)
 
         self._started = False
         self._running = False
@@ -82,7 +82,7 @@ class AvroLoopConsumer(AvroConsumer):
         self._started = True
         self._running = True
         while self._running:
-            msg = super().poll(timeout)
+            msg = super(AvroLoopConsumer, self).poll(timeout)
             if msg is None:
                 logger.info("poll() timeout")
             elif msg.error():
@@ -93,7 +93,7 @@ class AvroLoopConsumer(AvroConsumer):
                             % (str(msg.topic()), str(msg.offset())))
                 on_delivery(msg)
 
-        super().close()
+        super(AvroLoopConsumer, self).close()
         self._stopped = True
 
     def stop(self):

@@ -97,7 +97,7 @@ class AvroLoopProducer(AvroProducer):
         except SchemaParseException:
             raise SchemaParseException("Invalid Avro schema for value")
 
-        super().__init__(self._config, default_key_schema=self._key_schema, default_value_schema=self._value_schema)
+        super(AvroLoopProducer, self).__init__(self._config, default_key_schema=self._key_schema, default_value_schema=self._value_schema)
 
     def produce(self, key=None, value=None, timestamp=None, partition=None,
                 on_delivery=lambda err, msg: AvroLoopProducer.on_delivery(err, msg)):
@@ -139,7 +139,7 @@ class AvroLoopProducer(AvroProducer):
             kwargs.update({"on_delivery": on_delivery})
 
         try:
-            super().produce(topic=self._topic, **kwargs)
+            super(AvroLoopProducer, self).produce(topic=self._topic, **kwargs)
 
         # if connection to schema registry server is down
         except requests.exceptions.ConnectionError:
@@ -147,14 +147,14 @@ class AvroLoopProducer(AvroProducer):
             time.sleep(1)
 
         if type(self._poll_timeout) != bool:
-            super().poll(timeout=self._poll_timeout)
+            super(AvroLoopProducer, self).poll(timeout=self._poll_timeout)
 
     def _loop_produce(self, data_function):
         """
         Preprocess data_function. Only allow valid results being pushed to Kafka.
 
         :param data_function: the result of this function is used as ``**kwargs`` for :meth:`produce()`
-        :type data_function: function that returns a list of dicts or a single dict with possible keys `key`, `value`, 
+        :type data_function: function that returns a list of dicts or a single dict with possible keys `key`, `value`,
             `timestamp`, `partition` and `on_delivery`
         """
 
@@ -184,7 +184,7 @@ class AvroLoopProducer(AvroProducer):
         Start timer that calls :data:`data_function` every defined interval.
 
         :param data_function: the result of this function is used as ``**kwargs`` for :meth:`produce()`
-        :type data_function: function that returns a list of dicts or a single dict with possible keys `key`, `value`, 
+        :type data_function: function that returns a list of dicts or a single dict with possible keys `key`, `value`,
             `timestamp`, `partition` and `on_delivery`
         :param interval: interval step
         :type interval: int
@@ -199,7 +199,7 @@ class AvroLoopProducer(AvroProducer):
         try:
             self._timer.start()
         except KeyboardInterrupt:
-            super().flush(0.1)
+            super(AvroLoopProducer, self).flush(0.1)
             # todo handle KeyboardInterrupt
             return
 
